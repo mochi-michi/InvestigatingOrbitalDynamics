@@ -4,30 +4,30 @@ import matplotlib.pyplot as plt
 
 # Constant
 gm_sun = 4 * math.pi**2 
-a = 0.387        # AU
-e = 0.2056       # eccentricity
+a = 0.387        # known as 'semi major axis' which is the average distance from the sun [AU]
+e = 0.2056       # describes eccentricity of orbit (how elongated elipse is )
 dt = 1e-4        # timestep
-n_orbits = 2.0   # how many orbits to simulate
+n_orbits = 5  # how many orbits to simulate
 
-# Accelaration function
+# Acceleration function
 
-def acceleration(x, y, GM = gm_sun):
+def acceleration(x, y, GM = gm_sun): 
     r = math.sqrt(x**2 + y**2)
     return -GM * x/ r**3, -GM * y/ r**3
 
 # Perihelion setup
-def perihelion_speed(a, e, GM = gm_sun):
-    return math.sqrt(GM * (1 + e) / (a * (1 - e)))
+def perihelion_speed(a, e, GM = gm_sun): # speed at perihelion point
+    return math.sqrt(GM * (1 + e) / (a * (1 - e))) 
 
-def perihelion(a, e, use_given_speed=False):
+def perihelion(a, e, use_given_speed=False): #  the point closest to the sun in an orbit
     # a is the axis, e is the eccentricity
-    x0 = a * (1 - e) # radius
+    x0 = a * (e-1) # radius, corrected to center towards -x axis
     y0 = 0.0
     vx0 = 0
     vy0 = perihelion_speed(a,e)
     return np.array([x0, y0, vx0, vy0])
 
-def step_euler(y, dt):
+def step_euler(y, dt): # Euler method to update position and velocity
     x, y_pos, vx, vy = y
     ax, ay = acceleration(x, y_pos)
     x_new = x + vx * dt
@@ -36,27 +36,28 @@ def step_euler(y, dt):
     vy_new = vy + ay * dt
     return np.array([x_new, y_new, vx_new, vy_new])
 
-y = perihelion(a, e)
-T = a**1.5
-n_steps = int(n_orbits * T / dt)
+y = perihelion(a, e) # initial state vector at perihelion
+T = a**1.5 
+n_steps = int(n_orbits * T / dt) 
 
-t = np.empty(n_steps + 1)
-out = np.empty((n_steps + 1, 4))
-out[0] = y
-t[0] = 0.0
+t = np.empty(n_steps + 1) 
+out = np.empty((n_steps + 1, 4)) # columns for x, y, vx and vy
+out[0] = y # initial condition
+t[0] = 0.0 # initial time
 
-for i in range(1, n_steps + 1):
+for i in range(1, n_steps + 1): # time integration loop
     y = step_euler(y, dt)
     out[i] = y
     t[i] = i * dt
 
 
-vx, vy = out[:, 2], out[:, 3]
-K = 0.5 * (vx*vx + vy*vy)
-U = -gm_sun / np.hypot(out[:,0], out[:,1])
+vx, vy = out[:, 2], out[:, 3] # velocities extracted
+K = 0.5 * (vx*vx + vy*vy) 
+U = -gm_sun / np.hypot(out[:,0], out[:,1]) 
 E = K + U
 print("Energy drift ΔE =", E[-1] - E[0])
 
+# Estimate period from y-crossings with vy>0
 yvals = out[:, 1]
 vyvals = out[:, 3]
 idx = np.where((yvals[:-1] <= 0) & (yvals[1:] > 0) & (vyvals[1:] > 0))[0][0]
