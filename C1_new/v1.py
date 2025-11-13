@@ -37,7 +37,7 @@ vx[0] = vx0
 vy[0] = vy0
 
 # euler method loop
-for n in range(N_steps - 1): # since n=1 is already computed inside
+for n in range(N_steps - 1): # go from n=0 to N_steps-2 since n+1 so array size wont be exceeded
 
     # magnitude of position vec 
     r = np.sqrt(x[n]**2 + y[n]**2) # distance from sun to mercury
