@@ -1,0 +1,287 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+G = 4 * np.pi**2      # Gravitational constant in given units
+#a = 0.387             # semi-major axis (AU)
+#e = 0.2056            # eccentricity
+
+a = 1
+e = 0
+
+xs, ys = -e * a, 0.0  # Sun position (focus)
+
+r_peri = a * (1 - e)  # perihelion distance from the Sun
+x0 = xs - r_peri      # Mercury position at perih
+y0 = 0.0
+
+vx0 = 0.0             # Initial velocity x = 0 y = func or 12????
+vy0 = np.sqrt(G * (1 + e) / (a * (1 - e)))
+
+t0 = 0.0              # T = 0
+t_end = 10.0          # 
+h_default = 0.001     # step size
+
+# Euler Method from C1 v2 edited to account for sun position not (0,0)
+
+def euler_method(x0, y0, vx0, vy0, dt, t_max, G=4*np.pi**2):
+
+    N_steps = int(t_max / dt)
+    
+    x = np.zeros(N_steps)
+    y = np.zeros(N_steps)
+    vx = np.zeros(N_steps)
+    vy = np.zeros(N_steps)
+    
+    x[0] = x0
+    y[0] = y0
+    vx[0] = vx0
+    vy[0] = vy0
+    
+    for n in range(N_steps - 1):
+        dx = x[n] - xs  #hashed out -xs to same as C1.py udate from git but sun defined 0,0
+        dy = y[n] - ys
+        r = np.hypot(dx, dy)
+        
+        ax = -G * dx / r**3
+        ay = -G * dy / r**3
+        
+        x[n+1] = x[n] + vx[n] * dt
+        y[n+1] = y[n] + vy[n] * dt
+        
+        vx[n+1] = vx[n] + ax * dt
+        vy[n+1] = vy[n] + ay * dt
+    
+    t = np.linspace(0, t_max, N_steps)
+    return t, x, y, vx, vy
+
+
+def rk2_method(x0, y0, vx0, vy0, dt, t_max, G=4*np.pi**2):
+    
+    N_steps = int(t_max / dt)
+    
+    x = np.zeros(N_steps)
+    y = np.zeros(N_steps)
+    vx = np.zeros(N_steps)
+    vy = np.zeros(N_steps)
+    
+    x[0] = x0
+    y[0] = y0
+    vx[0] = vx0
+    vy[0] = vy0
+    
+    for n in range(N_steps - 1):
+       
+        
+        dx = x[n] - xs
+        dy = y[n] - ys
+        r = np.hypot(dx, dy)
+        ax = -G * dx / r**3
+        ay = -G * dy / r**3
+        
+        k1_x  = vx[n]
+        k1_y  = vy[n]
+        k1_vx = ax
+        k1_vy = ay
+        
+       
+        x_e  = x[n]  + dt * k1_x
+        y_e  = y[n]  + dt * k1_y
+        vx_e = vx[n] + dt * k1_vx
+        vy_e = vy[n] + dt * k1_vy
+        
+       
+        dx_e = x_e - xs
+        dy_e = y_e - ys
+        r_e  = np.hypot(dx_e, dy_e)
+        ax_e = -G * dx_e / r_e**3
+        ay_e = -G * dy_e / r_e**3
+        
+        k2_x  = vx_e
+        k2_y  = vy_e
+        k2_vx = ax_e
+        k2_vy = ay_e
+        
+    
+        x[n+1]  = x[n]  + 0.5 * dt * (k1_x  + k2_x)
+        y[n+1]  = y[n]  + 0.5 * dt * (k1_y  + k2_y)
+        vx[n+1] = vx[n] + 0.5 * dt * (k1_vx + k2_vx)
+        vy[n+1] = vy[n] + 0.5 * dt * (k1_vy + k2_vy)
+    
+    t = np.linspace(0, t_max, N_steps)
+    return t, x, y, vx, vy
+
+
+def rk4_method(x0, y0, vx0, vy0, dt, t_max, G=4*np.pi**2):
+    
+    N_steps = int(t_max / dt)
+    
+    x = np.zeros(N_steps)
+    y = np.zeros(N_steps)
+    vx = np.zeros(N_steps)
+    vy = np.zeros(N_steps)
+    
+    x[0] = x0
+    y[0] = y0
+    vx[0] = vx0
+    vy[0] = vy0
+    
+    for n in range(N_steps - 1):
+        # k1
+        dx1 = x[n] - xs
+        dy1 = y[n] - ys
+        r1  = np.hypot(dx1, dy1)
+        ax1 = -G * dx1 / r1**3
+        ay1 = -G * dy1 / r1**3
+        
+        k1_x  = vx[n]
+        k1_y  = vy[n]
+        k1_vx = ax1
+        k1_vy = ay1
+        
+        # k2
+        x2  = x[n]  + 0.5 * dt * k1_x
+        y2  = y[n]  + 0.5 * dt * k1_y
+        vx2 = vx[n] + 0.5 * dt * k1_vx
+        vy2 = vy[n] + 0.5 * dt * k1_vy
+        
+        dx2 = x2 - xs
+        dy2 = y2 - ys
+        r2  = np.hypot(dx2, dy2)
+        ax2 = -G * dx2 / r2**3
+        ay2 = -G * dy2 / r2**3
+        
+        k2_x  = vx2
+        k2_y  = vy2
+        k2_vx = ax2
+        k2_vy = ay2
+        
+        # k3
+        x3  = x[n]  + 0.5 * dt * k2_x
+        y3  = y[n]  + 0.5 * dt * k2_y
+        vx3 = vx[n] + 0.5 * dt * k2_vx
+        vy3 = vy[n] + 0.5 * dt * k2_vy
+        
+        dx3 = x3 - xs
+        dy3 = y3 - ys
+        r3  = np.hypot(dx3, dy3)
+        ax3 = -G * dx3 / r3**3
+        ay3 = -G * dy3 / r3**3
+        
+        k3_x  = vx3
+        k3_y  = vy3
+        k3_vx = ax3
+        k3_vy = ay3
+        
+        # k4
+        x4  = x[n]  + dt * k3_x
+        y4  = y[n]  + dt * k3_y
+        vx4 = vx[n] + dt * k3_vx
+        vy4 = vy[n] + dt * k3_vy
+        
+        dx4 = x4 - xs
+        dy4 = y4 - ys
+        r4  = np.hypot(dx4, dy4)
+        ax4 = -G * dx4 / r4**3
+        ay4 = -G * dy4 / r4**3
+        
+        k4_x  = vx4
+        k4_y  = vy4
+        k4_vx = ax4
+        k4_vy = ay4
+        
+        # All K
+        x[n+1]  = x[n]  + (dt / 6.0) * (k1_x  + 2*k2_x  + 2*k3_x  + k4_x)
+        y[n+1]  = y[n]  + (dt / 6.0) * (k1_y  + 2*k2_y  + 2*k3_y  + k4_y)
+        vx[n+1] = vx[n] + (dt / 6.0) * (k1_vx + 2*k2_vx + 2*k3_vx + k4_vx)
+        vy[n+1] = vy[n] + (dt / 6.0) * (k1_vy + 2*k2_vy + 2*k3_vy + k4_vy)
+    
+    t = np.linspace(0, t_max, N_steps)
+    return t, x, y, vx, vy
+
+
+def leapfrog_method(x0, y0, vx0, vy0, dt, t_max, G=4*np.pi**2):
+    
+    N_steps = int(t_max / dt)
+    
+    x = np.zeros(N_steps)
+    y = np.zeros(N_steps)
+    vx = np.zeros(N_steps)
+    vy = np.zeros(N_steps)
+    
+    x[0] = x0
+    y[0] = y0
+    vx[0] = vx0
+    vy[0] = vy0
+    
+    for n in range(N_steps - 1):
+        dx = x[n] - xs
+        dy = y[n] - ys
+        r = np.hypot(dx, dy)
+        ax = -G * dx / r**3
+        ay = -G * dy / r**3
+        
+        vx_half = vx[n] + 0.5 * dt * ax
+        vy_half = vy[n] + 0.5 * dt * ay
+        
+        x_new = x[n] + dt * vx_half
+        y_new = y[n] + dt * vy_half
+        
+        dx_new = x_new - xs
+        dy_new = y_new - ys
+        r_new = np.hypot(dx_new, dy_new)
+        ax_new = -G * dx_new / r_new**3
+        ay_new = -G * dy_new / r_new**3
+        
+        vx_new = vx_half + 0.5 * dt * ax_new
+        vy_new = vy_half + 0.5 * dt * ay_new
+        
+        x[n+1] = x_new
+        y[n+1] = y_new
+        vx[n+1] = vx_new
+        vy[n+1] = vy_new
+    
+    t = np.linspace(0, t_max, N_steps)
+    return t, x, y, vx, vy
+
+
+methods = {
+    'Euler': euler_method,
+    'RK2': rk2_method,
+    'RK4': rk4_method,
+    'Leapfrog': leapfrog_method,
+}
+
+results = {}
+for name, method in methods.items():
+    t_vals, x, y, vx, vy = method(x0, y0, vx0, vy0, h_default, t_end, G=G)
+    results[name] = {'t': t_vals, 'x': x, 'y': y, 'vx': vx, 'vy': vy}
+  
+# Plotting
+
+fig, ax = plt.subplots(figsize=(10, 10))
+
+colors = {
+    'Euler': 'red',
+    'RK2': 'blue',
+    'RK4': 'green',
+    'Leapfrog': 'purple'
+}
+
+for name, res in results.items():
+    ax.plot(res['x'], res['y'], '-', label=name, color=colors[name],
+            linewidth=1.5, alpha=0.7)
+
+ax.scatter(xs, ys, s=150, marker='o', edgecolors='black',
+           facecolors='yellow', linewidth=1.5, label='Sun', zorder=5)
+
+ax.set_xlabel('x (AU)', fontsize=12)
+ax.set_ylabel('y (AU)', fontsize=12)
+ax.set_title('Mercury Orbit: C4 w/ C1 copy so far no convergence', fontsize=14)
+ax.axis('equal')
+ax.grid(True, alpha=0.3)
+ax.legend(fontsize=11, loc='best')
+plt.tight_layout()
+plt.savefig('orbits_comparison.png', dpi=150)
+plt.show()
+
