@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-
 # Euler method computed in a function
 def euler_method(x0, y0, vx0, vy0, dt, t_max, G=4*np.pi**2, M=1.0):
 
@@ -84,6 +83,7 @@ plt.grid(True)
 plt.show()
 
 '''
+- note the center of the ellipse is at x=+ea only the sun is at the origin
 - the orbit visualization, for the Euler method, won't close and will continuously spiral 
   outward (if E_T increases) and inwards (if E_T decreases)
 - smaller dt does improve this

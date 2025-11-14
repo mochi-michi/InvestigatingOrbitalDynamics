@@ -18,7 +18,7 @@ vy0 = 12.0                # AU/year (given) (-12 for cw orbit)
 
 
 # simulation time
-dt = 0.001    # duration of each time step to advance simulation (measured in yrs)
+dt = 0.001    # duration of each time step to advance simulation (measured in yrs) 
 t_max = 5.0     # simulate for this many years 
 N_steps = int(t_max / dt)  
 print(f'Will simulate {N_steps} time steps') 
