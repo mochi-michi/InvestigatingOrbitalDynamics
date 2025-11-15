@@ -1,0 +1,440 @@
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import numpy as np
+from tqdm import tqdm
+
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot() 
+
+class PlanetOrbit:
+    def __init__(self, name, mass, diameter, x0, y0, vx0, vy0, color):
+        self.name = name
+        self.mass = mass
+        self.diameter = diameter
+        self.color = color
+        # Store self initial conditions = so each method uses its own ICs
+        self.x0, self.y0, self.vx0, self.vy0 = x0, y0, vx0, vy0
+        
+        # Sun position (focus)
+        # self.xs, self.ys = 0.0, 0.0 # at center // origin // 0.0,0.0
+        self.xs, self.ys = -e * a, 0.0 # off center
+        
+        # Calculate orbital period
+        self.orbital_period = np.sqrt(4 * np.pi**2 * a**3 / G)  # Kepler's third law
+        
+        # Initialise orbit arrays for all methods
+        self.initialise_arrays()
+        
+    def initialise_arrays(self):
+        '''
+        Initialising zeros arrays for all methods:
+        Methods: Euler method, RK2 method, RK4 method, Leapfrog method
+        '''
+        # Calculate size of arrays, based on the number of orbits
+        total_number_of_calculations_steps = int(num_orbits * self.orbital_period / dt_time_step_duration_years)
+        
+        self.euler_x = np.zeros(total_number_of_calculations_steps)
+        self.euler_y = np.zeros(total_number_of_calculations_steps)
+        self.euler_vx = np.zeros(total_number_of_calculations_steps)
+        self.euler_vy = np.zeros(total_number_of_calculations_steps)
+        
+        self.rk2_x = np.zeros(total_number_of_calculations_steps)
+        self.rk2_y = np.zeros(total_number_of_calculations_steps)
+        self.rk2_vx = np.zeros(total_number_of_calculations_steps)
+        self.rk2_vy = np.zeros(total_number_of_calculations_steps)
+        
+        self.rk4_x = np.zeros(total_number_of_calculations_steps)
+        self.rk4_y = np.zeros(total_number_of_calculations_steps)
+        self.rk4_vx = np.zeros(total_number_of_calculations_steps)
+        self.rk4_vy = np.zeros(total_number_of_calculations_steps)
+        
+        self.leapfrog_x = np.zeros(total_number_of_calculations_steps)
+        self.leapfrog_y = np.zeros(total_number_of_calculations_steps)
+        self.leapfrog_vx = np.zeros(total_number_of_calculations_steps)
+        self.leapfrog_vy = np.zeros(total_number_of_calculations_steps)
+        
+    def get_total_number_of_calculations_steps(self):
+        '''Return the total number of calculation steps based on number of orbits'''
+        return len(self.euler_x) # using length of euler_x array, since all same size
+    
+    def calculate_all_orbits(self):
+        '''Calculate orbits using different calculation methods'''
+        self.euler_method()
+        self.rk2_method()
+        self.rk4_method()
+        self.leapfrog_method()
+    
+    def euler_method(self):
+        '''Function for Euler integration method calculations ... 
+        from C1 v2 edited to account for sun position not (0,0)'''
+        # Set initial conditions
+        self.euler_x[0] = self.x0
+        self.euler_y[0] = self.y0
+        self.euler_vx[0] = self.vx0
+        self.euler_vy[0] = self.vy0
+        
+        total_number_of_calculations_steps = self.get_total_number_of_calculations_steps()
+        pbar = tqdm(total=total_number_of_calculations_steps-1, desc=f'Euler method calculations...{self.name}')
+        
+        for n in range(total_number_of_calculations_steps - 1):
+            dx = self.euler_x[n] - self.xs
+            dy = self.euler_y[n] - self.ys
+            r = np.hypot(dx, dy)
+            
+            # Acceleration due to gravity
+            ax = -G * dx / r**3
+            ay = -G * dy / r**3
+            
+            # Update position and velocity
+            self.euler_x[n+1] = self.euler_x[n] + self.euler_vx[n] * dt_time_step_duration_years
+            self.euler_y[n+1] = self.euler_y[n] + self.euler_vy[n] * dt_time_step_duration_years
+            self.euler_vx[n+1] = self.euler_vx[n] + ax * dt_time_step_duration_years
+            self.euler_vy[n+1] = self.euler_vy[n] + ay * dt_time_step_duration_years
+            
+            pbar.update(1)
+        pbar.close()
+        return self.euler_x, self.euler_y
+    
+    def rk2_method(self):
+        '''Function for RK2 integration method calculations'''
+        # Set initial conditions
+        self.rk2_x[0] = self.x0
+        self.rk2_y[0] = self.y0
+        self.rk2_vx[0] = self.vx0
+        self.rk2_vy[0] = self.vy0
+        
+        total_number_of_calculations_steps = self.get_total_number_of_calculations_steps()
+        pbar = tqdm(total=total_number_of_calculations_steps-1, desc=f'RK2 method calculations...{self.name}')
+        
+        for n in range(total_number_of_calculations_steps - 1):
+            # k1
+            dx = self.rk2_x[n] - self.xs
+            dy = self.rk2_y[n] - self.ys
+            r = np.hypot(dx, dy)
+            ax = -G * dx / r**3
+            ay = -G * dy / r**3
+            
+            k1_x  = self.rk2_vx[n]
+            k1_y  = self.rk2_vy[n]
+            k1_vx = ax
+            k1_vy = ay
+            
+            # k2 (euler step)
+            x_e  = self.rk2_x[n]  + dt_time_step_duration_years * k1_x
+            y_e  = self.rk2_y[n]  + dt_time_step_duration_years * k1_y
+            vx_e = self.rk2_vx[n] + dt_time_step_duration_years * k1_vx
+            vy_e = self.rk2_vy[n] + dt_time_step_duration_years * k1_vy
+            
+            dx_e = x_e - self.xs
+            dy_e = y_e - self.ys
+            r_e  = np.hypot(dx_e, dy_e)
+            ax_e = -G * dx_e / r_e**3
+            ay_e = -G * dy_e / r_e**3
+            
+            k2_x  = vx_e
+            k2_y  = vy_e
+            k2_vx = ax_e
+            k2_vy = ay_e
+            
+            # Update using average of k1 and k2
+            self.rk2_x[n+1]  = self.rk2_x[n]  + 0.5 * dt_time_step_duration_years * (k1_x  + k2_x)
+            self.rk2_y[n+1]  = self.rk2_y[n]  + 0.5 * dt_time_step_duration_years * (k1_y  + k2_y)
+            self.rk2_vx[n+1] = self.rk2_vx[n] + 0.5 * dt_time_step_duration_years * (k1_vx + k2_vx)
+            self.rk2_vy[n+1] = self.rk2_vy[n] + 0.5 * dt_time_step_duration_years * (k1_vy + k2_vy)
+            
+            pbar.update(1)
+        pbar.close()
+        return self.rk2_x, self.rk2_y
+    
+    def rk4_method(self):
+        '''Function for Runge-Kutta-4 (4th order integration) method calculations'''
+        # Set initial conditions
+        self.rk4_x[0] = self.x0
+        self.rk4_y[0] = self.y0
+        self.rk4_vx[0] = self.vx0
+        self.rk4_vy[0] = self.vy0
+        
+        total_number_of_calculations_steps = self.get_total_number_of_calculations_steps()
+        pbar = tqdm(total=total_number_of_calculations_steps-1, desc=f'RK4 method calculations...{self.name}')
+        
+        for n in range(total_number_of_calculations_steps - 1):
+            # k1
+            dx1 = self.rk4_x[n] - self.xs
+            dy1 = self.rk4_y[n] - self.ys
+            r1  = np.hypot(dx1, dy1)
+            ax1 = -G * dx1 / r1**3
+            ay1 = -G * dy1 / r1**3
+            
+            k1_x  = self.rk4_vx[n]
+            k1_y  = self.rk4_vy[n]
+            k1_vx = ax1
+            k1_vy = ay1
+            
+            # k2
+            x2  = self.rk4_x[n]  + 0.5 * dt_time_step_duration_years * k1_x
+            y2  = self.rk4_y[n]  + 0.5 * dt_time_step_duration_years * k1_y
+            vx2 = self.rk4_vx[n] + 0.5 * dt_time_step_duration_years * k1_vx
+            vy2 = self.rk4_vy[n] + 0.5 * dt_time_step_duration_years * k1_vy
+            
+            dx2 = x2 - self.xs
+            dy2 = y2 - self.ys
+            r2  = np.hypot(dx2, dy2)
+            ax2 = -G * dx2 / r2**3
+            ay2 = -G * dy2 / r2**3
+            
+            k2_x  = vx2
+            k2_y  = vy2
+            k2_vx = ax2
+            k2_vy = ay2
+            
+            # k3
+            x3  = self.rk4_x[n]  + 0.5 * dt_time_step_duration_years * k2_x
+            y3  = self.rk4_y[n]  + 0.5 * dt_time_step_duration_years * k2_y
+            vx3 = self.rk4_vx[n] + 0.5 * dt_time_step_duration_years * k2_vx
+            vy3 = self.rk4_vy[n] + 0.5 * dt_time_step_duration_years * k2_vy
+            
+            dx3 = x3 - self.xs
+            dy3 = y3 - self.ys
+            r3  = np.hypot(dx3, dy3)
+            ax3 = -G * dx3 / r3**3
+            ay3 = -G * dy3 / r3**3
+            
+            k3_x  = vx3
+            k3_y  = vy3
+            k3_vx = ax3
+            k3_vy = ay3
+            
+            # k4
+            x4  = self.rk4_x[n]  + dt_time_step_duration_years * k3_x
+            y4  = self.rk4_y[n]  + dt_time_step_duration_years * k3_y
+            vx4 = self.rk4_vx[n] + dt_time_step_duration_years * k3_vx
+            vy4 = self.rk4_vy[n] + dt_time_step_duration_years * k3_vy
+            
+            dx4 = x4 - self.xs
+            dy4 = y4 - self.ys
+            r4  = np.hypot(dx4, dy4)
+            ax4 = -G * dx4 / r4**3
+            ay4 = -G * dy4 / r4**3
+            
+            k4_x  = vx4
+            k4_y  = vy4
+            k4_vx = ax4
+            k4_vy = ay4
+            
+            # Update using weighted average // All K
+            self.rk4_x[n+1]  = self.rk4_x[n]  + (dt_time_step_duration_years / 6.0) * (k1_x  + 2*k2_x  + 2*k3_x  + k4_x)
+            self.rk4_y[n+1]  = self.rk4_y[n]  + (dt_time_step_duration_years / 6.0) * (k1_y  + 2*k2_y  + 2*k3_y  + k4_y)
+            self.rk4_vx[n+1] = self.rk4_vx[n] + (dt_time_step_duration_years / 6.0) * (k1_vx + 2*k2_vx + 2*k3_vx + k4_vx)
+            self.rk4_vy[n+1] = self.rk4_vy[n] + (dt_time_step_duration_years / 6.0) * (k1_vy + 2*k2_vy + 2*k3_vy + k4_vy)
+            
+            pbar.update(1)
+        pbar.close()
+        return self.rk4_x, self.rk4_y
+    
+    def leapfrog_method(self):
+        '''Function for Leapfrog integration method calculations'''
+        # Set initial conditions
+        self.leapfrog_x[0] = self.x0
+        self.leapfrog_y[0] = self.y0
+        self.leapfrog_vx[0] = self.vx0
+        self.leapfrog_vy[0] = self.vy0
+        
+        total_number_of_calculations_steps = self.get_total_number_of_calculations_steps()
+        pbar = tqdm(total=total_number_of_calculations_steps-1, desc=f'Leapfrog method calculations...{self.name}')
+        
+        for n in range(total_number_of_calculations_steps - 1):
+            dx = self.leapfrog_x[n] - self.xs
+            dy = self.leapfrog_y[n] - self.ys
+            r = np.hypot(dx, dy)
+            ax = -G * dx / r**3
+            ay = -G * dy / r**3
+            
+            # Half-step velocity update
+            vx_half = self.leapfrog_vx[n] + 0.5 * dt_time_step_duration_years * ax
+            vy_half = self.leapfrog_vy[n] + 0.5 * dt_time_step_duration_years * ay
+            
+            # Full-step position update
+            x_new = self.leapfrog_x[n] + dt_time_step_duration_years * vx_half
+            y_new = self.leapfrog_y[n] + dt_time_step_duration_years * vy_half
+            
+            # New acceleration
+            dx_new = x_new - self.xs
+            dy_new = y_new - self.ys
+            r_new = np.hypot(dx_new, dy_new)
+            ax_new = -G * dx_new / r_new**3
+            ay_new = -G * dy_new / r_new**3
+            
+            # Half-step velocity update
+            vx_new = vx_half + 0.5 * dt_time_step_duration_years * ax_new
+            vy_new = vy_half + 0.5 * dt_time_step_duration_years * ay_new
+            
+            self.leapfrog_x[n+1] = x_new
+            self.leapfrog_y[n+1] = y_new
+            self.leapfrog_vx[n+1] = vx_new
+            self.leapfrog_vy[n+1] = vy_new
+            
+            pbar.update(1)
+        pbar.close()
+        return self.leapfrog_x, self.leapfrog_y
+
+# Constants and Initial Conditions for Mercury (at perihelion) in the 'right' units:
+
+G = 4*np.pi**2  # = GM_sun ~= gravitational constant (AU^3 M_sun^-1 yr^-2)
+M_sun = 1 # (M_sun) = 1.989e30 kg
+m_mercury = 1.6597e-7 # (M_sun) ~= 3.3011e23 kg
+diamerter_sun = 9.3096e-3 # (AU) = 1392700000(m)/149597870700(AU) = 9.3096e-3 (AU)
+diamerter_mercury = 3.2614e-5 # (AU) = 4879000(m)/149597870700(AU)
+a = 0.387   # semi major axis (AU)
+e = 0.2056  # eccentricity (0 = circle, <1= ellipse)
+
+# a = 1 # testing a e for convergence
+# e = 0
+
+r_peri = a * (1 - e) # perihelion distance (AU)
+xs, ys = -e * a, 0.0 # Sun position (focus)
+
+# Initial position and velocity of mercury (+or- vy0 => counter clockwise, ccw, or cw orbit)
+mercury_x0 = xs - r_peri # Mercury position at perih
+mercury_y0 = 0.0
+mercury_vx0 = 0.0
+mercury_vy0 = np.sqrt(G * (1 + e) / (a * (1 - e)))  # ~= 12.0
+# print('mercury_vy0', mercury_vy0)
+
+# Get user input for number of orbits to simulate # RE ALLOW USER INPUT LATER ... HARD CODE 10 FOR TESTING #######################################
+# num_orbits = float(input('Enter the number of orbits to simulate: '))
+num_orbits = 10.0
+
+# Calculate orbital period for Mercury from Kepler's third law
+orbital_period = np.sqrt(4 * np.pi**2 * a**3 / G)  # years
+print(f'Mercury orbital period: {orbital_period:.3f} years')
+print(f'Simulating {num_orbits} orbits = {num_orbits * orbital_period:.3f} years')
+
+# Plotting and Animation constants:
+plot_marker_size_sun = 15
+plot_marker_size_mercury = 5
+plot_line_width = 2
+
+# duration of each time step to advance simulation
+dt_time_step_duration_years = 0.001  # years ~= 8.766 hours
+
+# Create planet objects # class(self, name, mass, diameter, x0, y0, vx0, vy0, color)
+sun = PlanetOrbit('Sun', M_sun, diamerter_sun, 0, 0, 0, 0, 'yellow')
+mercury = PlanetOrbit('Mercury', m_mercury, diamerter_mercury, mercury_x0, mercury_y0, mercury_vx0, mercury_vy0, 'orange')
+
+# Calculate all orbits
+mercury.calculate_all_orbits()
+
+# Get the actual total number of steps from the planet object
+total_number_of_calculations_steps = mercury.get_total_number_of_calculations_steps()
+# Keep number of animated frames roughly constant, makes ridiculous user inputed number of orbits more managable
+animation_frame_step = max(1, total_number_of_calculations_steps // 100)  # Show 100 ish frames
+
+print(f'Total number of calculation steps: {total_number_of_calculations_steps}')
+print(f'Total number of animation frames: {animation_frame_step}')
+
+# Animation setup
+animation_frames = range(0, total_number_of_calculations_steps, animation_frame_step)
+total_animation_frames = len(animation_frames)
+animation_pbar = tqdm(total=total_animation_frames, desc='Animation progress...')
+
+def animated_lines(current_frame):
+    plt.cla()
+    plt.title(f'Group King: Orbitial Dynamics of Mercury: \nComparing Calculation Methods of {num_orbits} Simulated Orbits:')
+    plt.xlabel('x (AU)')
+    plt.ylabel('y (AU)')
+    
+    max_dist = 1.5  # (AU) // may include log scale to adjust for size of plot
+    ax.set_xlim(-max_dist, max_dist)
+    ax.set_ylim(-max_dist, max_dist)
+    
+    # Plot Sun as fixed point at origin
+    # ax.plot(0, 0, 'yo', markersize=plot_marker_size_sun, label='Sun')
+    
+    # Plot Sun as fixed point at origin
+    ax.plot(xs, ys, 'yo', markersize=plot_marker_size_sun, label='Sun')
+
+    
+    frame_index = animation_frames[current_frame]
+    
+    # Plot calculation methods
+    ax.plot(mercury.euler_x[:frame_index], mercury.euler_y[:frame_index], 
+            color='red', alpha=0.7, linewidth=plot_line_width, label='Euler Method')
+    ax.plot(mercury.euler_x[frame_index], mercury.euler_y[frame_index], 'o', 
+            color='red', markersize=plot_marker_size_mercury)
+    
+    ax.plot(mercury.rk2_x[:frame_index], mercury.rk2_y[:frame_index], 
+            color='blue', alpha=0.7, linewidth=plot_line_width, label='RK2 Method')
+    ax.plot(mercury.rk2_x[frame_index], mercury.rk2_y[frame_index], 'o', 
+            color='blue', markersize=plot_marker_size_mercury)
+    
+    ax.plot(mercury.rk4_x[:frame_index], mercury.rk4_y[:frame_index], 
+            color='green', alpha=0.7, linewidth=plot_line_width, label='Runge-Kutta 4')
+    ax.plot(mercury.rk4_x[frame_index], mercury.rk4_y[frame_index], 'o', 
+            color='green', markersize=plot_marker_size_mercury)
+    
+    ax.plot(mercury.leapfrog_x[:frame_index], mercury.leapfrog_y[:frame_index], 
+            color='purple', alpha=0.7, linewidth=plot_line_width, label='Leapfrog Method')
+    ax.plot(mercury.leapfrog_x[frame_index], mercury.leapfrog_y[frame_index], 'o', 
+            color='purple', markersize=plot_marker_size_mercury)
+        
+    plt.legend(loc='upper right')
+    plt.grid(True)
+    animation_pbar.update(1)
+    
+    if current_frame == total_animation_frames - 1:
+        animation_pbar.close()
+
+# Create animation
+animation = FuncAnimation(plt.gcf(), animated_lines, frames=len(animation_frames), interval=1, repeat=False)
+plt.show()
+
+# Ploting methods seperatley for comparison
+fig_comparison, axs = plt.subplots(2, 2, figsize=(10, 8))
+fig_comparison.suptitle(f'Group King: Orbitial Dynamics of Mercury:\nComparing Calculation Methods of {num_orbits} Simulated Orbits:', fontsize=16)
+
+# Plot Euler Method
+axs[0, 0].plot(mercury.euler_x, mercury.euler_y, 'red', linewidth=1.5)
+axs[0, 0].plot(xs, ys, 'yo', markersize=plot_marker_size_sun/2)
+axs[0, 0].plot(mercury.euler_x[0], mercury.euler_y[0], 'ro', markersize=plot_marker_size_sun/4, label='Mercury Euler')
+axs[0, 0].set_title('Euler Method')
+axs[0, 0].set_xlabel('x (AU)')
+axs[0, 0].set_ylabel('y (AU)')
+axs[0, 0].axis('equal')
+axs[0, 0].grid(True, alpha=0.3)
+axs[0, 0].legend(fontsize=10, loc='best')
+
+# Plot RK2 Method
+axs[0, 1].plot(mercury.rk2_x, mercury.rk2_y, 'blue', linewidth=1.5)
+axs[0, 1].plot(xs, ys, 'yo', markersize=plot_marker_size_sun/2)
+axs[0, 1].plot(mercury.rk2_x[0], mercury.rk2_y[0], 'bo', markersize=plot_marker_size_sun/4, label='Mercury RK2')
+axs[0, 1].set_title('RK2 Method')
+axs[0, 1].set_xlabel('x (AU)')
+axs[0, 1].set_ylabel('y (AU)')
+axs[0, 1].axis('equal')
+axs[0, 1].grid(True, alpha=0.3)
+axs[0, 1].legend(fontsize=10, loc='best')
+
+# Plot RK4 Method
+axs[1, 0].plot(mercury.rk4_x, mercury.rk4_y, 'green', linewidth=1.5)
+axs[1, 0].plot(xs, ys, 'yo', markersize=plot_marker_size_sun/2)
+axs[1, 0].plot(mercury.rk4_x[0], mercury.rk4_y[0], 'go', markersize=plot_marker_size_sun/4, label='Mercury RK4')
+axs[1, 0].set_title('RK4 Method')
+axs[1, 0].set_xlabel('x (AU)')
+axs[1, 0].set_ylabel('y (AU)')
+axs[1, 0].axis('equal')
+axs[1, 0].grid(True, alpha=0.3)
+axs[1, 0].legend(fontsize=10, loc='best')
+
+# Plot Leapfrog Method
+axs[1, 1].plot(mercury.leapfrog_x, mercury.leapfrog_y, 'purple', linewidth=1.5)
+axs[1, 1].plot(xs, ys, 'yo', markersize=plot_marker_size_sun/2)
+axs[1, 1].plot(mercury.leapfrog_x[0], mercury.leapfrog_y[0], 'mo', markersize=plot_marker_size_sun/4, label='Mercury Leapfroog')
+axs[1, 1].set_title('Leapfrog Method')
+axs[1, 1].set_xlabel('x (AU)')
+axs[1, 1].set_ylabel('y (AU)')
+axs[1, 1].axis('equal')
+axs[1, 1].grid(True, alpha=0.3)
+axs[1, 1].legend(fontsize=10, loc='best')
+
+plt.tight_layout()
+plt.show()
