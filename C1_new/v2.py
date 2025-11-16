@@ -58,7 +58,7 @@ vy0 = 12.0                # AU/year (given) (-12 for cw orbit)
 
 
 # simulation time
-dt = 0.001    # duration of each time step to advance simulation (measured in yrs)
+dt = 0.0001    # duration of each time step to advance simulation (measured in yrs)
 t_max = 5.0     # simulate for this many years 
 N_steps = int(t_max / dt)  
 print(f'Will simulate {N_steps} time steps') 
@@ -83,9 +83,44 @@ plt.grid(True)
 plt.show()
 
 '''
-- note the center of the ellipse is at x=+ea only the sun is at the origin
 - the orbit visualization, for the Euler method, won't close and will continuously spiral 
   outward (if E_T increases) and inwards (if E_T decreases)
 - smaller dt does improve this
 - notice for higher dt, the orbit is incomplete (unstable)
+- for creativity marks, could 
 '''
+
+
+# comparing theoretical and measured time period
+# find distance between sun and mercury at every time step
+r_list = [] # values should go up (perihelion) and down (aphelion)
+for i in range(len(x)):
+    r = np.sqrt(x[i]**2 +y[i]**2)
+    r_list.append(r)
+    
+# look for perihelion (closest points) where r goes down then up
+# find record the corresponding time at each perhilion point
+perihelion_times = []
+for i in range(1, len(r_list) - 1):
+    if r_list[i] < r_list[i-1] and r_list[i] < r_list[i+1]: # accept if value below < current value < value above
+        perihelion_times.append(t[i])
+
+print("\nOrbital Period Check")
+print(f'There are {len(perihelion_times)} perihelion passages')
+
+
+# find orbital period from time array
+# find time between two consecutive times (at the perihelion points), this will be an interval
+periods = []
+for i in range(1, len(perihelion_times)):
+    period = perihelion_times[i] - perihelion_times[i-1]
+    periods.append(period)
+        
+    # store these intervals in an array and take average to find the average orbital period
+    avg_period = sum(periods) / len(periods)
+    theoretical = np.sqrt(a**3)
+    
+print(f"The average simulated period is {round(avg_period, 4)} years")
+print(f"The calculated theoretical period is sqrt(a^3): { round(theoretical, 4)} years")
+print(f"The difference is {round(avg_period - theoretical, 5)} years")
+    

@@ -24,6 +24,7 @@ N_steps = int(t_max / dt)
 print(f'Will simulate {N_steps} time steps') 
 
 
+
 # store the postion and velocity at each time step
 x = np.zeros(N_steps)
 y = np.zeros(N_steps)
