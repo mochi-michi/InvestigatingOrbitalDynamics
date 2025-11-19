@@ -1,0 +1,243 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Nov 18 14:17:36 2025
+@author: jamesemmett
+
+- GR Model w/ Perihelion Advance
+- Reduced version of orbital estimation code with only RK4 implemented
+- Adapted to visualise/ measure perihelion advance
+
+"""
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy
+from scipy.signal import find_peaks
+
+"""
+1: Constants and Initial Conditions
+
+"""
+# CONSTANTS
+
+gr = 1.0                # GR on  = 1 GR off =0
+G = 4 * np.pi**2        # Gravitational Constant (AU^3 M_S^-1 Year^-1)
+a = 0.387               # Semi-major Axis (AU)
+e = 0.2056              # Eccentricity
+c_actual = 63197.8      # Speed of Light in (AU year^-1)
+c_prime = c_actual/100  # C_prime to increase visual effect
+
+# INTIAL CONDITIONS
+
+xs, ys = -e * a, 0.0    # Sun position (focus)
+r_peri = a * (1 - e)    # Perihelion distance of Mercury
+x0 = xs - r_peri        # Mercury position at perihelion/ intial position
+y0 = 0.0                # Mercury position at perihelion/ intial position
+vx0 = 0.0                               # Intial velocity in x
+vy0 = np.sqrt(G/a * (1 + e) / (1 - e))  # Intial velocity in y
+t0 = 0.0                                # T_0  =  0
+
+# METHOD VARIABLES
+
+t_end = 1200        # Run time
+h_default = 0.0001       # Method/s step size
+
+"""
+2: RK4 Method 
+- Copied from original code
+- ODEs ammended (GR)
+"""
+
+def rk4_method(x0, y0, vx0, vy0, dt, t_max, G=4*np.pi**2):
+    
+    N_steps = int(t_max / dt)
+    
+    x = np.zeros(N_steps)
+    y = np.zeros(N_steps)
+    vx = np.zeros(N_steps)
+    vy = np.zeros(N_steps)
+    
+    x[0] = x0
+    y[0] = y0
+    vx[0] = vx0
+    vy[0] = vy0
+    
+    for n in range(N_steps - 1):
+        # k1
+        dx1 = x[n] - xs
+        dy1 = y[n] - ys
+        r1  = np.hypot(dx1, dy1)
+        ax1 = -G * dx1 / r1**3 - gr*((3/2) * G**2 * dx1 / (c_prime**2 * r1**4))
+        ay1 = -G * dy1 / r1**3 - gr*(3/2) * G**2 * dy1 / (c_prime**2 * r1**4)
+
+        
+        k1_x  = vx[n]
+        k1_y  = vy[n]
+        k1_vx = ax1
+        k1_vy = ay1
+        
+        # k2
+        x2  = x[n]  + 0.5 * dt * k1_x
+        y2  = y[n]  + 0.5 * dt * k1_y
+        vx2 = vx[n] + 0.5 * dt * k1_vx
+        vy2 = vy[n] + 0.5 * dt * k1_vy
+        
+        dx2 = x2 - xs
+        dy2 = y2 - ys
+        r2  = np.hypot(dx2, dy2)
+        ax2 = -G * dx2 / r2**3 - gr*((3/2) * G**2 * dx2 / (c_prime**2 * r2**4))
+        ay2 = -G * dy2 / r2**3 - gr*(3/2) * G**2 * dy2 / (c_prime**2 * r2**4)
+        
+        k2_x  = vx2
+        k2_y  = vy2
+        k2_vx = ax2
+        k2_vy = ay2
+        
+        # k3
+        x3  = x[n]  + 0.5 * dt * k2_x
+        y3  = y[n]  + 0.5 * dt * k2_y
+        vx3 = vx[n] + 0.5 * dt * k2_vx
+        vy3 = vy[n] + 0.5 * dt * k2_vy
+        
+        dx3 = x3 - xs
+        dy3 = y3 - ys
+        r3  = np.hypot(dx3, dy3)
+        ax3 = -G * dx3 / r3**3 - gr*((3/2) * G**2 * dx3 / (c_prime**2 * r3**4))
+        ay3 = -G * dy3 / r3**3 - gr*(3/2) * G**2 * dy3 / (c_prime**2 * r3**4)
+        
+        k3_x  = vx3
+        k3_y  = vy3
+        k3_vx = ax3
+        k3_vy = ay3
+        
+        # k4
+        x4  = x[n]  + dt * k3_x
+        y4  = y[n]  + dt * k3_y
+        vx4 = vx[n] + dt * k3_vx
+        vy4 = vy[n] + dt * k3_vy
+        
+        dx4 = x4 - xs
+        dy4 = y4 - ys
+        r4  = np.hypot(dx4, dy4)
+        ax4 = -G * dx4 / r4**3 - gr*((3/2) * G**2 * dx4 / (c_prime**2 * r4**4))
+        ay4 = -G * dy4 / r4**3 - gr*(3/2) * G**2 * dy4 / (c_prime**2 * r4**4)
+        
+        k4_x  = vx4
+        k4_y  = vy4
+        k4_vx = ax4
+        k4_vy = ay4
+        
+        # All K
+        x[n+1]  = x[n]  + (dt / 6.0) * (k1_x  + 2*k2_x  + 2*k3_x  + k4_x)
+        y[n+1]  = y[n]  + (dt / 6.0) * (k1_y  + 2*k2_y  + 2*k3_y  + k4_y)
+        vx[n+1] = vx[n] + (dt / 6.0) * (k1_vx + 2*k2_vx + 2*k3_vx + k4_vx)
+        vy[n+1] = vy[n] + (dt / 6.0) * (k1_vy + 2*k2_vy + 2*k3_vy + k4_vy)
+    
+    t = np.linspace(0, t_max, N_steps)
+    return t, x, y, vx, vy
+
+
+
+methods = { 
+    'RK4': rk4_method, # Other methods removed for efficeincy, to avoid repetition 
+   }
+
+
+results = {}
+for name, method in methods.items():
+    t_vals, x, y, vx, vy = method(x0, y0, vx0, vy0, h_default, t_end, G=G)
+    results[name] = {'t': t_vals, 'x': x, 'y': y, 'vx': vx, 'vy': vy}
+    
+
+"""
+3: heoretical Prediction
+- From formula in script with T^2 = a^3 subbed in and in units rad/ rev
+"""
+sigma_theoretical_c_actual = (24*np.pi**3)/(a*c_actual**2*(1-e**2))
+sigma_theoretical_c_prime = (24*np.pi**3)/(a*c_prime**2*(1-e**2))
+
+"""
+4: OUTPUTS
+- Theroetical Prediction for sigma rad/ rev
+- Calculated from angles of perihelion position at each point
+- Calculated to check method from half trun = pi rad
+- 
+"""
+
+print("sigma theoretical w/ c'=", sigma_theoretical_c_prime,"radians/ revolution")
+
+def perihelions(x, y, xs, ys):
+    dx = x - xs
+    dy = y - ys
+    r = np.hypot(dx, dy)
+    peaks, _ = find_peaks(-r) # Scipy package to find peaks in data set
+                              # Peak in - r = min in r data set
+                              # _ require only 1st value
+    return peaks
+
+res = results['RK4']
+x = res['x']
+y = res['y']
+
+peri_idx = perihelions(x, y, xs, ys)  # Perihelion Indices
+
+plt.figure(figsize=(10, 10))          # Plotting
+ax = plt.gca()
+
+ax.scatter(x[peri_idx], y[peri_idx],  # Perihelion Positions, colour size etc
+ marker='o', s=12, color='blue', alpha=0.7, label='Perihelion points')
+
+ax.scatter(xs, ys, s=200, marker='o', color='orange', # Sun Position, colour size etc
+ zorder=10, label='Sun')
+
+ax.set_xlabel('x (AU)', fontsize=12)
+ax.set_ylabel('y (AU)', fontsize=12)
+#ax.set_title('Perihelion Advance of Mercury with $c\' = c/100$', fontsize=13)
+ax.grid(True, linestyle='--', alpha=0.5)
+ax.legend(loc='upper right')
+plt.show()
+
+"""
+MEASUREMENT OF ADVANCE
+- average change in angle between consecutive data points ie per orbit/ revolution 
+"""
+
+x_peri = x[peri_idx]
+y_peri = y[peri_idx]
+
+theta_peri= np.arctan2(y_peri, x_peri)   # theta = tan^-1(y/x)
+dtheta = np.diff(theta_peri)             # np.diff finds the difference between  
+                                         # consecutive theta_peri points                               
+sigma_average = np.mean(dtheta)          # Average theta change per point
+                                         # since each point is a perihelion position
+                                         # perihelion once per orbit hence rad/ rev
+
+print("Average sigma:", -sigma_average, "rad/rev")
+
+"""
+BACK UP CHECK 
+- use xmax value to estimate number of orbits to reach half way = pi
+"""
+
+idx_max = np.argmax(x_peri)             # Index of xmax positon ie mid way theta = pi
+                                        # Number of orbits/ rev to this point
+x_max = x_peri[idx_max]                 # xmax
+sigma_half_method = np.pi / (idx_max)   # rad/ rev
+
+print("xmax position:", x_max)
+print("Orbit index at xmax:", idx_max)
+print("Sigma from half method", sigma_half_method)
+
+"""
+UNCERTAINTY QUANTIFICATION
+"""
+sigma_stdev = np.std(dtheta)        # Standard deviation of array of dtheta values
+                                    # ie the array of abgular advance values
+
+N = len(dtheta)                     # Number of revolutions = number of data points
+
+sigma_sem = sigma_stdev / np.sqrt(N) # Standard error on the mean from std
+
+print("Standard deviation of sigma:", sigma_stdev, "rad/rev")
+print("Standard Error of the Mean (SEM):", sigma_sem, "rad/rev")
+print("Number of orbits, length of dtheta:", N)
