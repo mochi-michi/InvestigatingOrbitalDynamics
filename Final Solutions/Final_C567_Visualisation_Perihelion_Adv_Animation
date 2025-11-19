@@ -1,0 +1,243 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy
+from scipy.signal import find_peaks
+import matplotlib.animation as animation
+from tqdm import tqdm
+
+"""
+1: Constants and Initial Conditions
+"""
+# CONSTANTS
+gr = 1.0                # GR on  = 1 GR off =0
+G = 4 * np.pi**2        # Gravitational Constant (AU^3 M_S^-1 Year^-1)
+a = 0.387               # Semi-major Axis (AU)
+e = 0.2056              # Eccentricity
+c_actual = 63197.8      # Speed of Light in (AU year^-1)
+c_prime = c_actual/100  # C_prime to increase visual effect
+
+# INTIAL CONDITIONS
+xs, ys = -e * a, 0.0    # Sun position (focus)
+r_peri = a * (1 - e)    # Perihelion distance of Mercury
+x0 = xs - r_peri        # Mercury position at perihelion/ intial position
+y0 = 0.0                # Mercury position at perihelion/ intial position
+vx0 = 0.0                               # Intial velocity in x
+vy0 = np.sqrt(G/a * (1 + e) / (1 - e))  # Intial velocity in y
+t0 = 0.0                                # T_0  =  0
+
+# METHOD VARIABLES
+t_end = 1200        # Run time - years => roughly 5000 orbits
+h_default = 0.001       # Method/s step size - years => roughly 8.67 hours
+
+"""
+2: RK4 Method
+"""
+def rk4_method(x0, y0, vx0, vy0, dt, t_max, G=4*np.pi**2):
+    
+    N_steps = int(t_max / dt)
+    
+    x = np.zeros(N_steps)
+    y = np.zeros(N_steps)
+    vx = np.zeros(N_steps)
+    vy = np.zeros(N_steps)
+    
+    x[0] = x0
+    y[0] = y0
+    vx[0] = vx0
+    vy[0] = vy0
+    
+    # Progress bar for calculation = timing model for rk4 method
+    pbar = tqdm(total=N_steps, desc="Calculating Orbit", unit="steps")
+    
+    for n in range(N_steps - 1):
+        # k1
+        dx1 = x[n] - xs
+        dy1 = y[n] - ys
+        r1  = np.hypot(dx1, dy1)
+        ax1 = -G * dx1 / r1**3 - gr*((3/2) * G**2 * dx1 / (c_prime**2 * r1**4))
+        ay1 = -G * dy1 / r1**3 - gr*(3/2) * G**2 * dy1 / (c_prime**2 * r1**4)
+
+        
+        k1_x  = vx[n]
+        k1_y  = vy[n]
+        k1_vx = ax1
+        k1_vy = ay1
+        
+        # k2
+        x2  = x[n]  + 0.5 * dt * k1_x
+        y2  = y[n]  + 0.5 * dt * k1_y
+        vx2 = vx[n] + 0.5 * dt * k1_vx
+        vy2 = vy[n] + 0.5 * dt * k1_vy
+        
+        dx2 = x2 - xs
+        dy2 = y2 - ys
+        r2  = np.hypot(dx2, dy2)
+        ax2 = -G * dx2 / r2**3 - gr*((3/2) * G**2 * dx2 / (c_prime**2 * r2**4))
+        ay2 = -G * dy2 / r2**3 - gr*(3/2) * G**2 * dy2 / (c_prime**2 * r2**4)
+        
+        k2_x  = vx2
+        k2_y  = vy2
+        k2_vx = ax2
+        k2_vy = ay2
+        
+        # k3
+        x3  = x[n]  + 0.5 * dt * k2_x
+        y3  = y[n]  + 0.5 * dt * k2_y
+        vx3 = vx[n] + 0.5 * dt * k2_vx
+        vy3 = vy[n] + 0.5 * dt * k2_vy
+        
+        dx3 = x3 - xs
+        dy3 = y3 - ys
+        r3  = np.hypot(dx3, dy3)
+        ax3 = -G * dx3 / r3**3 - gr*((3/2) * G**2 * dx3 / (c_prime**2 * r3**4))
+        ay3 = -G * dy3 / r3**3 - gr*(3/2) * G**2 * dy3 / (c_prime**2 * r3**4)
+        
+        k3_x  = vx3
+        k3_y  = vy3
+        k3_vx = ax3
+        k3_vy = ay3
+        
+        # k4
+        x4  = x[n]  + dt * k3_x
+        y4  = y[n]  + dt * k3_y
+        vx4 = vx[n] + dt * k3_vx
+        vy4 = vy[n] + dt * k3_vy
+        
+        dx4 = x4 - xs
+        dy4 = y4 - ys
+        r4  = np.hypot(dx4, dy4)
+        ax4 = -G * dx4 / r4**3 - gr*((3/2) * G**2 * dx4 / (c_prime**2 * r4**4))
+        ay4 = -G * dy4 / r4**3 - gr*(3/2) * G**2 * dy4 / (c_prime**2 * r4**4)
+        
+        k4_x  = vx4
+        k4_y  = vy4
+        k4_vx = ax4
+        k4_vy = ay4
+        
+        # All K
+        x[n+1]  = x[n]  + (dt / 6.0) * (k1_x  + 2*k2_x  + 2*k3_x  + k4_x)
+        y[n+1]  = y[n]  + (dt / 6.0) * (k1_y  + 2*k2_y  + 2*k3_y  + k4_y)
+        vx[n+1] = vx[n] + (dt / 6.0) * (k1_vx + 2*k2_vx + 2*k3_vx + k4_vx)
+        vy[n+1] = vy[n] + (dt / 6.0) * (k1_vy + 2*k2_vy + 2*k3_vy + k4_vy)
+        
+        # Update progress bar every 1000 steps to avoid slowing down the calculation
+        if n % 1000 == 0:
+            pbar.update(1000)
+    
+    pbar.update(N_steps - pbar.n)  # Update to 100%
+    pbar.close()
+    
+    t = np.linspace(0, t_max, N_steps)
+    return t, x, y, vx, vy
+
+def perihelions(x, y, xs, ys):
+    dx = x - xs
+    dy = y - ys
+    r = np.hypot(dx, dy)
+    peaks, _ = find_peaks(-r)
+    return peaks
+
+
+# Run the simulation
+methods = {'RK4': rk4_method}
+results = {}
+for name, method in methods.items():
+    t_vals, x, y, vx, vy = method(x0, y0, vx0, vy0, h_default, t_end, G=G)
+    results[name] = {'t': t_vals, 'x': x, 'y': y, 'vx': vx, 'vy': vy}
+
+res = results['RK4']
+x = res['x']
+y = res['y']
+t_vals = res['t']
+
+# Find all perihelion points
+peri_idx = perihelions(x, y, xs, ys)
+
+# Find the data range for the first complete orbit
+if len(peri_idx) >= 2:
+    first_orbit_end = peri_idx[1]  # Second perihelion marks end of first orbit
+    first_orbit_x = x[:first_orbit_end]
+    first_orbit_y = y[:first_orbit_end]
+else:
+    first_orbit_x = x
+    first_orbit_y = y
+
+"""
+3: Animation of Perihelion Advance
+"""
+# Set up the figure
+fig, ax = plt.subplots(figsize=(8,8))
+# Sun position
+sun_point = ax.scatter([xs], [ys], s=200, marker='o', color='orange', zorder=10, label='Sun')
+# First orbit path 
+first_orbit_line, = ax.plot(first_orbit_x, first_orbit_y, 'red', alpha=0.7, linewidth=1.5, label='Path of First Orbit')
+
+# Perihelion points updated during animation process
+perihelion_scatter = ax.scatter([], [], s=50, color='blue', alpha=0.7, label='Perihelion Points')
+# Set axis limits and labels
+axisLim = 0.66
+ax.set_xlim(-axisLim, axisLim)
+ax.set_ylim(-axisLim, axisLim)
+ax.set_xlabel('x (AU)', fontsize=12)
+ax.set_ylabel('y (AU)', fontsize=12)
+ax.set_title('Visualisation Animation for Perihelion Advance of Mercury', fontsize=13)
+ax.grid(True, linestyle='--', alpha=0.5)
+ax.legend(loc='upper right')
+
+# Animation progress bar with 1 every x frames where x is frame_skip
+frame_skip = 10
+total_frames = len(peri_idx) // frame_skip
+if len(peri_idx) % frame_skip != 0:
+    total_frames += 1
+pbar_anim = tqdm(total=total_frames, desc="Animating", unit="frames")
+
+def init():
+    # Initialize with empty perihelion points
+    perihelion_scatter.set_offsets(np.empty((0, 2)))
+    return perihelion_scatter,
+
+def animate(frame):
+    # Show perihelion points up to current frame (1 in x frames) => ploting a subset of the perihelion points
+    current_frame = (frame + 1) * frame_skip  # Show frames 10, 20, 30, etc......
+    if current_frame > len(peri_idx):
+        current_frame = len(peri_idx)
+    current_peri = peri_idx[:current_frame]  # All perihelion points up to current frame
+    # Update perihelion points
+    perihelion_data = np.column_stack((x[current_peri], y[current_peri]))
+    perihelion_scatter.set_offsets(perihelion_data)
+    # Update progress bar
+    pbar_anim.update(1)
+    # Update title to show progress
+    # ax.set_title(f'Perihelion Advance of Mercury (Frame {current_frame}/{len(peri_idx)})', fontsize=13)
+    return perihelion_scatter,
+
+# Create animation
+ani = animation.FuncAnimation(fig, animate, frames=total_frames, init_func=init, blit=True, interval=1, repeat=False)
+plt.tight_layout()
+plt.show()
+# Close the animation progress bar
+pbar_anim.close()
+print(f"Total simulation time: {t_end} years")
+print(f"Total number of orbits completed: {len(peri_idx)}")
+"""
+4: Plot of all perihelion points with path of first orbit for reference
+"""
+plt.figure(figsize=(8,8))
+ax = plt.gca()
+axisLim = 0.6
+ax.set_xlim(-axisLim, axisLim)
+ax.set_ylim(-axisLim, axisLim)
+# Plot the complete orbit
+ax.plot(x, y, 'lightgray', alpha=0.3, linewidth=0.5, label='Region of Complete Orbits')
+# Plot the first orbit
+ax.plot(first_orbit_x, first_orbit_y, 'red', alpha=0.7, linewidth=1.5, label='Path of First Orbit')
+# Plot all perihelion points
+ax.scatter(x[peri_idx], y[peri_idx], marker='o', s=50, color='blue', alpha=0.7, label='Perihelion points')
+# Sun position
+ax.scatter(xs, ys, s=200, marker='o', color='orange', zorder=10, label='Sun')
+ax.set_xlabel('x (AU)', fontsize=12)
+ax.set_ylabel('y (AU)', fontsize=12)
+ax.set_title('Visualisation Plot for Perihelion Advance of Mercury', fontsize=13)
+ax.grid(True, linestyle='--', alpha=0.5)
+ax.legend(loc='upper right')
+plt.show()
